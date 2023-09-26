@@ -1,10 +1,18 @@
 from datetime import datetime
+from enum import Enum
 
-from API.constants import TaskStatus
-from ExecutorFactory import ExecutorFactory
+from Task.TaskExecutor import TaskExecutor
 
 
-class Executor:
+class TaskStatus(Enum):
+    NOT_STARTED = 0
+    IN_PROGRESS = 1
+    COMPLETED = 2
+    FAILED = 3
+    CANCELLED = 4
+
+
+class Script:
     def __init__(self, db_id: int, **kwargs):
         self.db_id = db_id
         self.kwargs = kwargs
@@ -18,24 +26,32 @@ class ScheduleConfig:
 
 
 class Task:
-    def __int__(self, name: str, description: str, schedule: ScheduleConfig | None,
-                executors: Executor | list[Executor], run_immediately: bool = False):
+    def __init__(self, name: str, description: str, schedule: ScheduleConfig | None,
+                 scripts: Script | list[Script], run_immediately: bool = False):
+        if isinstance(scripts, Script):
+            scripts = [scripts]
+        self.scripts = scripts
         self.name = name
         self.description = description
         self.schedule = schedule
-        self.executors = executors
         self.run_immediately = run_immediately
         self.status = TaskStatus.NOT_STARTED
+        self.scripts_status = dict()
+        self.task_executor = None
 
     def start(self):
-        if type(self.executors, list):
-            status = dict()
-            for executor in self.executors:
-                executor_obj = ExecutorFactory.create_executor(executor.db_id, **executor.kwargs)
-                return_status = executor_obj.run()
-                status[executor.db_id] = return_status
-        else:
-            executor_obj = ExecutorFactory.create_executor(self.executors.db_id, **self.executors.kwargs)
-            status = executor_obj.run()
+        if self.status != TaskStatus.IN_PROGRESS:
+            self.task_executor = TaskExecutor(self)
+            self.task_executor.execute_scripts()
+            self.status = TaskStatus.IN_PROGRESS
 
-        return status
+    def set_status(self, status: TaskStatus):
+        self.status = status
+
+    def set_scripts_status(self, scripts_status: dict[int, TaskStatus]):
+        self.scripts_status = scripts_status
+
+    def get_execution_status(self):
+        if self.status == TaskStatus.IN_PROGRESS:
+            return self.task_executor.get_scripts_status()
+        return self.scripts_status
