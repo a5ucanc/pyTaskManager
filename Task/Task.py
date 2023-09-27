@@ -13,8 +13,8 @@ class TaskStatus(Enum):
 
 
 class Script:
-    def __init__(self, db_id: int, **kwargs):
-        self.db_id = db_id
+    def __init__(self, id: int, **kwargs):
+        self.id = id
         self.kwargs = kwargs
 
 

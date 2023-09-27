@@ -9,7 +9,6 @@ class ExecutorAPI(ABC):
     def help(self):
         if self.__doc__ is None:
             return "No help available for this executor."
-
         return self.__doc__
 
     @abstractmethod
