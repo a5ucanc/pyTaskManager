@@ -6,16 +6,19 @@ from enum import Enum
 
 class EventTypes(Enum):
     STATUS_EVENT = 'status_event'
-    TERMINATE_EVENT = 'terminate_event'
+    STOP_EVENT = 'stop_event'
     PAUSE_EVENT = 'pause_event'
+    RESUME_EVENT = 'resume_event'
 
 
 class HandlerThread:
-    def __init__(self, event_name, event, callback):
-        self.event_name = event_name
+    def __init__(self, event, callback):
         self.event = event
         self.callback = callback
         self.terminate = threading.Event()
+        self.thread = None
+
+    def start_handler(self):
         self.thread = threading.Thread(target=self.handler)
         self.thread.start()
 
@@ -31,17 +34,22 @@ class HandlerThread:
 
 class EventHandler:
     def __init__(self):
-        self.events: dict[str, multiprocessing.Event] = dict()
+        self.events: dict[multiprocessing.Event, Callable] = dict()
+        self.event_names = dict()
         self.listeners: list[HandlerThread] = list()
+        self.queue = multiprocessing.Queue()
 
-    def start_handlers(self, mapping: dict[str, Callable]):
-        for event_name, event in self.events.items():
-            self.listeners.append(HandlerThread(event_name, event, mapping[event_name]))
+    def start_handlers(self):
+        for event, callback in self.events.items():
+            ht = HandlerThread(event, callback)
+            ht.start_handler()
+            self.listeners.append(ht)
 
     def stop_handlers(self):
         if self.listeners:
             for listener in self.listeners:
                 listener.stop_handler()
 
-    def add_event(self, event_name: str, callback: Callable):
-        self.events[event_name] = callback
+    def register_event(self, event_name: str, event: multiprocessing.Event, callback: Callable):
+        self.events[event] = callback
+        self.event_names[event_name] = event

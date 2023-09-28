@@ -13,7 +13,7 @@ class TaskStatus(Enum):
 
 
 class Script:
-    def __init__(self, id: int, **kwargs):
+    def __init__(self, id: int, kwargs):
         self.id = id
         self.kwargs = kwargs
 
@@ -36,22 +36,27 @@ class Task:
         self.schedule = schedule
         self.run_immediately = run_immediately
         self.status = TaskStatus.NOT_STARTED
-        self.scripts_status = dict()
+        self.execution_status = dict()
         self.task_executor = None
 
     def start(self):
-        if self.status != TaskStatus.IN_PROGRESS:
+        if self.status != TaskStatus.IN_PROGRESS and self.task_executor:
             self.task_executor = TaskExecutor(self)
             self.task_executor.execute_scripts()
             self.status = TaskStatus.IN_PROGRESS
+
+    def stop(self):
+        if self.task_executor:
+            self.task_executor.stop()
+            self.status = TaskStatus.CANCELLED
 
     def set_status(self, status: TaskStatus):
         self.status = status
 
     def set_scripts_status(self, scripts_status: dict[int, TaskStatus]):
-        self.scripts_status = scripts_status
+        self.execution_status = scripts_status
 
     def get_execution_status(self):
-        if self.status == TaskStatus.IN_PROGRESS:
-            return self.task_executor.get_scripts_status()
-        return self.scripts_status
+        if self.status == TaskStatus.IN_PROGRESS and self.task_executor:
+            return self.task_executor.get_execution_status()
+        return self.execution_status
